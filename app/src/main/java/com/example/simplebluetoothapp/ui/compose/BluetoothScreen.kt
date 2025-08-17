@@ -7,6 +7,7 @@ import android.util.Log
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -179,8 +180,8 @@ fun BluetoothScreen(
                 Spacer(modifier = Modifier.height(16.dp))
             }
 
-            // --- Paired Devices Section ---
             if (!isConnectionEstablished) {
+                // --- Paired Devices Section ---
                 if (isBluetoothEnabled && hasBluetoothPermissions && pairedDevices.isNotEmpty()) {
                     Text(
                         "Paired Devices:",
@@ -214,18 +215,87 @@ fun BluetoothScreen(
                 } else if (isBluetoothEnabled && hasBluetoothPermissions && pairedDevices.isEmpty() && !isScanning) {
                     // Only show "No paired devices" if not also actively scanning for new ones
                     Text(
-                        "No paired devices found. Bond the target BT device and your phone outside of this app.",
+                        "No paired devices found.",
                         style = MaterialTheme.typography.bodyMedium,
                         modifier = Modifier.padding(vertical = 8.dp)
                     )
                     Spacer(modifier = Modifier.height(16.dp))
                 }
 
-                if (pairedDevices.isNotEmpty() && connectedDeviceName == null && !isConnecting) {
+                // --- Discovery Section ---
+                if (isBluetoothEnabled && connectedDeviceName == null && !isConnecting) {
+                    if (!areScanPermissionsGranted && !isScanning) {
+                        Text(
+                            "BLUETOOTH_SCAN permission is required to start discovery on Android 12+.",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.error,
+                            modifier = Modifier.padding(horizontal = 16.dp)
+                        )
+                    }
+                    Spacer(modifier = Modifier.height(16.dp))
+                }
+
+                if (isScanning && connectedDeviceName == null && !isConnecting) {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        CircularProgressIndicator(modifier = Modifier.width(24.dp))
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Text("Discovering devices...", style = MaterialTheme.typography.bodyLarge)
+                    }
+                    Spacer(modifier = Modifier.height(8.dp))
+                }
+
+                if (discoveredDevices.isEmpty() && !isScanning && connectedDeviceName == null && !isConnecting) {
+                    Text(
+                        "No devices found. Click 'Start Discovery'.",
+                        style = MaterialTheme.typography.bodyMedium
+                    )
+                } else if (discoveredDevices.isNotEmpty() && connectedDeviceName == null && !isConnecting) {
+                    Text(
+                        "Discovered Devices:",
+                        style = MaterialTheme.typography.titleMedium,
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(bottom = 4.dp)
+                    )
+
+                    Spacer(modifier = Modifier.height(8.dp))
+                    LazyColumn(modifier = Modifier.weight(1f)) {
+                        items(discoveredDevices, key = { it.address }) { device ->
+                            DeviceListItem(
+                                device = device,
+                                isSelected = device.address == selectedDevice?.address,
+                                onClick = {
+                                    selectedDevice = if (selectedDevice?.address == device.address) null else device
+                                }
+                            )
+                            HorizontalDivider()
+                        }
+                    }
+                }
+                Spacer(modifier = Modifier.height(16.dp))
+
+                Column(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                    verticalArrangement = Arrangement.Bottom
+                ) {
                     Row(
                         modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.Center,
+                        horizontalArrangement = Arrangement.SpaceEvenly
                     ) {
+                        Button(
+                            onClick = onStartScanClick,
+                            enabled = !isScanning && areScanPermissionsGranted && selectedDevice == null,
+                        ) { Text("Start Discovery") }
+                        Button(
+                            onClick = onStopScanClick,
+                            enabled = isScanning && selectedDevice == null,
+                            colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.secondary)
+                        ) { Text("Stop Discovery") }
+                    }
+                    Spacer(modifier = Modifier.height(8.dp))
+
+                    if ((pairedDevices.isNotEmpty() || discoveredDevices.isNotEmpty()) && connectedDeviceName == null && !isConnecting) {
                         Button(
                             onClick = {
                                 showBluetoothStatus = false
@@ -235,8 +305,8 @@ fun BluetoothScreen(
                         ) {
                             Text("Connect to Selected")
                         }
+                        Spacer(modifier = Modifier.height(16.dp))
                     }
-                    Spacer(modifier = Modifier.height(16.dp))
                 }
             } else {
                 StatusText(
@@ -335,81 +405,3 @@ data class TimeToSend(val hour: Int, val minute: Int) {
         return "$tag, $timeString;"
     }
 }
-
-/* Discovery section is hidden because it doesn't work.
-// --- Discovery Section ---
-if (isBluetoothEnabled && connectedDeviceName == null && !isConnecting) {
-    Row(
-        modifier = Modifier.fillMaxWidth(),
-        horizontalArrangement = Arrangement.SpaceEvenly
-    ) {
-        Button(
-            onClick = onStartScanClick,
-            enabled = !isScanning && areScanPermissionsGranted
-        ) { Text("Start Discovery") }
-        Button(
-            onClick = onStopScanClick,
-            enabled = isScanning,
-            colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.secondary)
-        ) { Text("Stop Discovery") }
-    }
-    Spacer(modifier = Modifier.height(8.dp))
-    if (!areScanPermissionsGranted && !isScanning) {
-        Text(
-            "BLUETOOTH_SCAN permission is required to start discovery on Android 12+.",
-            style = MaterialTheme.typography.bodySmall,
-            color = MaterialTheme.colorScheme.error,
-            modifier = Modifier.padding(horizontal = 16.dp)
-        )
-    }
-    Spacer(modifier = Modifier.height(16.dp))
-}
-
-if (isScanning && connectedDeviceName == null && !isConnecting) {
-    Row(verticalAlignment = Alignment.CenterVertically) {
-        CircularProgressIndicator(modifier = Modifier.width(24.dp))
-        Spacer(modifier = Modifier.width(8.dp))
-        Text("Discovering devices...", style = MaterialTheme.typography.bodyLarge)
-    }
-    Spacer(modifier = Modifier.height(8.dp))
-}
-
-if (discoveredDevices.isEmpty() && !isScanning && connectedDeviceName == null && !isConnecting) {
-    Text(
-        "No devices found. Click 'Start Discovery'.",
-        style = MaterialTheme.typography.bodyMedium
-    )
-} else if (discoveredDevices.isNotEmpty() && connectedDeviceName == null && !isConnecting) {
-    Row(
-        modifier = Modifier.fillMaxWidth(),
-        horizontalArrangement = Arrangement.SpaceBetween,
-        verticalAlignment = Alignment.CenterVertically
-    ) {
-        Text(
-            "Discovered Devices:",
-            style = MaterialTheme.typography.titleMedium,
-        )
-        Button(
-            onClick = { selectedDevice?.let { onDeviceSelectedToConnect(it) } },
-            enabled = selectedDevice != null && !isConnecting
-        ) {
-            Text("Connect to Selected")
-        }
-    }
-
-
-    Spacer(modifier = Modifier.height(8.dp))
-    LazyColumn(modifier = Modifier.weight(1f)) {
-        items(discoveredDevices, key = { it.address }) { device ->
-            DeviceListItem(
-                device = device,
-                isSelected = device.address == selectedDevice?.address,
-                onClick = {
-                    selectedDevice = if (selectedDevice?.address == device.address) null else device
-                }
-            )
-            HorizontalDivider()
-        }
-    }
-}
-*/

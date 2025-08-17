@@ -278,6 +278,13 @@ class MainActivity : ComponentActivity() {
                         }
                     }
                 }
+                BluetoothDevice.ACTION_ACL_DISCONNECTED -> {
+                    showToast("Disconnected from device.")
+                    connectedDeviceName = null
+                    connectedDeviceAddress = null
+                    isConnecting = false
+                    isConnectionEstablished = false
+                }
             }
         }
     }
@@ -313,8 +320,9 @@ class MainActivity : ComponentActivity() {
             addAction(BluetoothAdapter.ACTION_DISCOVERY_FINISHED)
             addAction(BluetoothDevice.ACTION_BOND_STATE_CHANGED) // Listen for pairing changes
             addAction(BluetoothAdapter.ACTION_STATE_CHANGED) // Listen for BT on/off
+            addAction(BluetoothDevice.ACTION_ACL_DISCONNECTED)
         }
-        registerReceiver(discoveryReceiver, filter, Context.RECEIVER_NOT_EXPORTED)
+        registerReceiver(discoveryReceiver, filter)
 
         Log.d(TAG, "Broadcast receiver registered")
 
